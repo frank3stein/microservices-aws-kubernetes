@@ -129,3 +129,83 @@ Please provide up to 3 sentences for each suggestion. Additional content in your
 ### Best Practices
 * Dockerfile uses an appropriate base image for the application being deployed. Complex commands in the Dockerfile include a comment describing what it is doing.
 * The Docker images use semantic versioning with three numbers separated by dots, e.g. `1.2.1` and  versioning is visible in the  screenshot. See [Semantic Versioning](https://semver.org/) for more details.
+
+
+
+==================
+
+Commands to run
+
+
+Setup python environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Make sure to install postgresql locally using brew
+    
+```bash
+brew install postgresql
+createuser -s postgres
+brew services restart postgresql
+
+```
+
+
+```bash
+helm repo add microservices-aws-kubernetes https://charts.bitnami.com/bitnami
+
+helm install backend-aws-kubernetes microservices-aws-kubernetes/postgresql
+
+#or if you installed it before use the upgrade command
+helm upgrade backend-aws-kubernetes microservices-aws-kubernetes/postgresql
+```
+
+After postgresql is installed, you can run the following commands to access the database:
+
+** Please be patient while the chart is being deployed **
+
+PostgreSQL can be accessed via port 5432 on the following DNS names from within your cluster:
+
+    backend-aws-kubernetes-postgresql.default.svc.cluster.local - Read/Write connection
+
+To get the password for "postgres" run:
+
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace default backend-aws-kubernetes-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+
+To connect to your database run the following command:
+
+    kubectl run backend-aws-kubernetes-postgresql-client --rm --tty -i --restart='Never' --namespace default --image docker.io/bitnami/postgresql:15.2.0-debian-11-r16 --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+      --command -- psql --host backend-aws-kubernetes-postgresql -U postgres -d postgres -p 5432
+
+    > NOTE: If you access the container using bash, make sure that you execute "/opt/bitnami/scripts/postgresql/entrypoint.sh /bin/bash" in order to avoid the error "psql: local user with ID 1001} does not exist"
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace default svc/backend-aws-kubernetes-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
+
+
+
+kubectl port-forward --namespace default svc/backend-aws-kubernetes-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < ./db/1_create_tables.sql &
+
+kubectl port-forward --namespace default svc/backend-aws-kubernetes-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < ./db/2_seed_users.sql & 
+
+kubectl port-forward --namespace default svc/backend-aws-kubernetes-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < ./db/3_seed_tokens.sql
+
+
+Source the env file to set the password and db name
+```bash
+source .env
+
+
+DB_USERNAME=$DB_USERNAME DB_PASSWORD=$DB_PASSWORD python ./analytics app.py
+```
+
+backend-aws-kubernetes-postgresql-0
